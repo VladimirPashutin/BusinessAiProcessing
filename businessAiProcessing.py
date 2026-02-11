@@ -2,19 +2,18 @@
 from __future__ import annotations
 
 import datetime
+import psycopg2 as ps
 import random
+import schedule
 import signal
 import sys
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 
-import psycopg2 as ps
-import schedule
-
 from ai_interface import AiInterface
-from debug_ui import handle_debug_get, handle_debug_post
 from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
+from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
 from gigachat import GigaChatAi
 from mistral import MistralAi
@@ -312,8 +311,11 @@ def processAssortmentImages(organization: str):
     promptId, prompt, providerType = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") +
-                    image[0] + "/" + image[1])
+        if image[1].startswith('http') and '://' in image[1]:
+            imageUrl = image[1]
+        else:
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/hooded/assortment/images/") +
+                        image[0] + "/" + image[1])
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)

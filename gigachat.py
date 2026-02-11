@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import base64
-import uuid
-import time
-import re
 import hashlib
-
-import requests
-import urllib3
 import psycopg2 as ps
+import re
+import requests
+import time
+import urllib3
+import uuid
 
 import environment
 from ai_interface import AiInterface
@@ -307,7 +306,7 @@ class GigaChatAi(AiInterface):
             else:
                 # Download and upload image
                 print(f"Downloading image from: {imageUrl}")
-                response = requests.get(imageUrl, stream=True)
+                response = requests.get(imageUrl, stream=True, verify=False)
                 response.raise_for_status()
                 image_data = response.content
                 print(f"Downloaded {len(image_data)} bytes of image data")
