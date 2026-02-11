@@ -310,19 +310,24 @@ def processAssortmentImages(organization: str):
     max_tokens = env.get("python.max_tokens_for_describe_image", 500)
     promptId, prompt, providerType = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
+    is_public_url = True 
     for image in images:
         if image[1].startswith('http') and '://' in image[1]:
             imageUrl = image[1]
         else:
             imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/hooded/assortment/images/") +
                         image[0] + "/" + image[1])
+            # for dev enviroment we should encode image data in base64 and send it to provider, 
+            #   because images are not accessible by public url
+            if(env.getProfileSuffix() == "dev"):
+                is_public_url = False 
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
 
         # Call provider with metadata
         imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl,
-                                                     image[2], prompt, max_tokens, file_metadata=file_metadata)
+                                                     image[2], prompt, max_tokens, is_public_url=is_public_url, file_metadata=file_metadata)
 
         # Store any new metadata returned by provider
         if new_metadata:

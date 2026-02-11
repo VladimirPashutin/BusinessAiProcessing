@@ -6,20 +6,20 @@
 # 2. Fetching available models
 # 3. Sending a test chat message
 
-# Load credentials from GigaChatApi.txt file
-if [ ! -f "GigaChatApi.txt" ]; then
-    echo -e "${RED}Error: GigaChatApi.txt file not found${NC}"
-    echo "Please create a GigaChatApi.txt file with your credentials in the format:"
-    echo "Client ID: your_client_id"
-    echo "Scope: GIGACHAT_API_PERS"
-    echo "Authorization Key: your_base64_encoded_key"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONFIG_PATH="${CONFIG_PATH:-$ROOT_DIR/application_dev.yaml}"
+
+if [ ! -f "$CONFIG_PATH" ]; then
+    echo -e "${RED}Error: config file not found: $CONFIG_PATH${NC}"
     exit 1
 fi
 
-# Parse credentials from file
-CLIENT_ID=$(grep "^Client ID:" GigaChatApi.txt | cut -d':' -f2- | xargs)
-SCOPE=$(grep "^Scope:" GigaChatApi.txt | cut -d':' -f2- | xargs)
-AUTH_KEY=$(grep "^Authorization Key:" GigaChatApi.txt | cut -d':' -f2- | xargs)
+AUTH_KEY=$(grep -E "^[[:space:]]*gigachat-auth-key:" "$CONFIG_PATH" | head -1 | sed -E 's/^[^:]+:[[:space:]]*//; s/^"//; s/"$//')
+if [ -z "$AUTH_KEY" ]; then
+    echo -e "${RED}Error: gigachat-auth-key not found in $CONFIG_PATH${NC}"
+    exit 1
+fi
 
 BASE_URL="https://gigachat.devices.sberbank.ru/api/v1"
 AUTH_URL="https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
@@ -33,34 +33,25 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== GigaChat API Test Script ===${NC}"
 echo
-
-# Check if credentials are set
-if [ "$CLIENT_ID" = "YOUR_CLIENT_ID_HERE" ] || [ "$CLIENT_SECRET" = "YOUR_CLIENT_SECRET_HERE" ]; then
-    echo -e "${RED}Error: Please set your CLIENT_ID and CLIENT_SECRET in this script${NC}"
-    echo "Edit this file and replace YOUR_CLIENT_ID_HERE and YOUR_CLIENT_SECRET_HERE with your actual credentials"
-    exit 1
-fi
+echo "Authorization key (first 20 chars): ${AUTH_KEY:0:20}..."
 
 # Step 1: Get authentication token
 echo -e "${YELLOW}Step 1: Getting authentication token...${NC}"
 
-# Create base64 encoded credentials
-CREDENTIALS=$(echo -n "$CLIENT_ID:$CLIENT_SECRET" | base64)
-
 # Generate UUID for RqUID
 RQUID=$(uuidgen)
 
-TOKEN_RESPONSE=$(curl -s -w "\n%{http_code}" \
+TOKEN_RESPONSE=$(curl -s -k -w "\n%{http_code}" \
   -X POST "$AUTH_URL" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -H "Accept: application/json" \
   -H "RqUID: $RQUID" \
-  -H "Authorization: Basic $CREDENTIALS" \
+  -H "Authorization: Basic $AUTH_KEY" \
   -d "scope=GIGACHAT_API_PERS")
 
 # Extract HTTP status code and response body
-HTTP_CODE=$(echo "$TOKEN_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$TOKEN_RESPONSE" | head -n -1)
+HTTP_CODE=$(echo "$TOKEN_RESPONSE" | tail -n 1)
+RESPONSE_BODY=$(echo "$TOKEN_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" -eq 200 ]; then
     echo -e "${GREEN}✓ Authentication successful${NC}"
@@ -76,14 +67,14 @@ fi
 # Step 2: Get available models
 echo -e "${YELLOW}Step 2: Getting available models...${NC}"
 
-MODELS_RESPONSE=$(curl -s -w "\n%{http_code}" \
+MODELS_RESPONSE=$(curl -s -k -w "\n%{http_code}" \
   -X GET "$BASE_URL/models" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json")
 
 # Extract HTTP status code and response body
-HTTP_CODE=$(echo "$MODELS_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$MODELS_RESPONSE" | head -n -1)
+HTTP_CODE=$(echo "$MODELS_RESPONSE" | tail -n 1)
+RESPONSE_BODY=$(echo "$MODELS_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" -eq 200 ]; then
     echo -e "${GREEN}✓ Models retrieved successfully${NC}"
@@ -115,15 +106,15 @@ CHAT_REQUEST='{
   "max_tokens": 100
 }'
 
-CHAT_RESPONSE=$(curl -s -w "\n%{http_code}" \
+CHAT_RESPONSE=$(curl -s -k -w "\n%{http_code}" \
   -X POST "$BASE_URL/chat/completions" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d "$CHAT_REQUEST")
 
 # Extract HTTP status code and response body
-HTTP_CODE=$(echo "$CHAT_RESPONSE" | tail -n1)
-RESPONSE_BODY=$(echo "$CHAT_RESPONSE" | head -n -1)
+HTTP_CODE=$(echo "$CHAT_RESPONSE" | tail -n 1)
+RESPONSE_BODY=$(echo "$CHAT_RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" -eq 200 ]; then
     echo -e "${GREEN}✓ Chat message sent successfully${NC}"

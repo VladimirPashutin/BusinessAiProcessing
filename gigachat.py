@@ -141,7 +141,7 @@ class GigaChatAi(AiInterface):
             return None
     def _chat_completion(self, messages: list, symbolModel: str, max_tokens: int = None) -> str | None:
         """Generic chat completion method"""
-        print(f"provider GigaChat endpoint chat/completions called (symbolModel: {symbolModel})")
+        print(f"provider GigaChat endpoint chat/completions called (model: {symbolModel})")
         
         if not self._get_auth_token():
             print("provider GigaChat endpoint chat/completions response failed (auth)")
@@ -153,7 +153,7 @@ class GigaChatAi(AiInterface):
         }
         
         data = {
-            "symbolModel": symbolModel,
+            "model": symbolModel,
             "messages": messages,
             "temperature": 0.7
         }
@@ -288,7 +288,8 @@ class GigaChatAi(AiInterface):
         return result
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                     prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+                     prompt: str, token_limit: int, is_public_url: bool | None = None, lower_tier: int = 0,
+                     file_metadata: dict = None) -> tuple[str | None, dict | None]:
         print(f"provider GigaChat endpoint describeImage called (tier: {lower_tier})")
         symbolModel = self._pick_model("vision", lower_tier)
         
@@ -338,7 +339,8 @@ class GigaChatAi(AiInterface):
             if result is None and lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
                 # Pass updated file_metadata with the file ID to retry attempts
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                          lower_tier + 1, file_metadata)
             
             # Prepare metadata to return
             metadata_to_return = None
@@ -358,6 +360,7 @@ class GigaChatAi(AiInterface):
             if lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
                 # Pass updated file_metadata with the file ID to retry attempts
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                          lower_tier + 1, file_metadata)
             print(f"provider GigaChat endpoint describeImage response failed: {e}")
             return None, None

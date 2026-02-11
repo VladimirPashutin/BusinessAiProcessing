@@ -49,12 +49,19 @@ class MistralAi(AiInterface):
         return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                      prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+                      prompt: str, token_limit: int, is_public_url: bool | None = None, lower_tier: int = 0,
+                      file_metadata: dict = None) -> tuple[str | None, dict | None]:
         print(f"provider Mistral endpoint describeImage called (tier: {lower_tier})")
         with Mistral(api_key=self.api_key, client=httpx.Client(verify=False, follow_redirects=True)) as mistral:
             try:
-                response = requests.get(imageUrl, stream=True, verify=False)
-                image_data = base64.b64encode(response.content).decode('utf-8')
+                use_direct_url = bool(is_public_url)
+                if use_direct_url:
+                    image_payload = imageUrl
+                else:
+                    response = requests.get(imageUrl, stream=True, verify=False)
+                    response.raise_for_status()
+                    image_data = base64.b64encode(response.content).decode('utf-8')
+                    image_payload = f"data:image/jpeg;base64,{image_data}"
                 model_name = self._pick_model("vision", lower_tier)
                 res = mistral.chat.complete(
                     model=model_name,
@@ -72,7 +79,7 @@ class MistralAi(AiInterface):
                         },
                         {
                             "content": [
-                                {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_data}"}
+                                {"type": "image_url", "image_url": image_payload}
                             ],
                             "role": "user"
                         }
@@ -88,7 +95,8 @@ class MistralAi(AiInterface):
                 if self._is_capacity_exceeded(e) and lower_tier < 2:
                     # Retry with a lower tier inside provider
                     print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
-                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                              lower_tier + 1, file_metadata)
                 print(f"provider Mistral endpoint describeImage response failed: {e}")
                 return None, None
 
