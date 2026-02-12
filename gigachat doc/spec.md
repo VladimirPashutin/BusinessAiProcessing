@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement GigaChat as a new AI symbolModel provider following the existing Mistral pattern. Keep it simple and reuse existing database schema.
+Implement GigaChat as a new AI model provider following the existing Mistral pattern. Keep it simple and reuse existing database schema.
 
 ## Architecture
 
@@ -38,8 +38,8 @@ class GigaChatAi(AiInterface):
 
 **Model Selection:**
 - Text: `["GigaChat-Pro", "GigaChat", "GigaChat-Max"]`
-- Vision: Same symbolModels (GigaChat supports images)
-- Tier fallback: try next symbolModel on failure
+- Vision: Same models (GigaChat supports images)
+- Tier fallback: try next model on failure
 
 #### 3. Configuration
 
@@ -140,7 +140,7 @@ AND ap.fname LIKE 'gigachat-plan-%';
 
 **Key Differences:**
 - Authentication: OAuth2 with Bearer token vs API key
-- Models: GigaChat symbolModel names vs Mistral symbolModel names
+- Models: GigaChat model names vs Mistral symbolModel names
 - Rate limits: 10 req/sec vs Mistral limits
 
 ## Implementation Steps

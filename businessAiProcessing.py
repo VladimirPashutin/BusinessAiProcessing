@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 import datetime
-import psycopg2 as ps
+import os
 import random
-import schedule
 import signal
 import sys
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import unquote, urlparse
 
+import psycopg2 as ps
+import schedule
+
 from ai_interface import AiInterface
 from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
 from debug_ui import handle_debug_get, handle_debug_post
-from environment import Environment
+from environment import Environment, getProfileSuffix
 from gigachat import GigaChatAi
 from mistral import MistralAi
 
@@ -247,7 +249,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
                                (timeCreated, orgId[0], assortment[0], str(promptId), publication, 0))
             if imageName is not None:
                 cursor.execute("INSERT INTO " + dbSchema + ".publication_images(publications_created_at,"
-                               "publications_organization_id, images) VALUES(%s, %s, %s, %s)",
+                               "publications_organization_id, images) VALUES(%s, %s, %s)",
                                (timeCreated, orgId[0], imageName))
             conn.commit()
             print(f"Сформирована публикация для {organization}")
@@ -315,11 +317,11 @@ def processAssortmentImages(organization: str):
         if image[1].startswith('http') and '://' in image[1]:
             imageUrl = image[1]
         else:
-            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/hooded/assortment/images/") +
-                        image[0] + "/" + image[1])
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/business-common/images/") +
+                        image[0] + "|" + image[1])
             # for dev enviroment we should encode image data in base64 and send it to provider, 
             #   because images are not accessible by public url
-            if(env.getProfileSuffix() == "dev"):
+            if getProfileSuffix(os.environ['PYTHON_PROFILE']) == ",dev":
                 is_public_url = False 
 
         # Load existing metadata
@@ -327,7 +329,7 @@ def processAssortmentImages(organization: str):
 
         # Call provider with metadata
         imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl,
-                                                     image[2], prompt, max_tokens, is_public_url=is_public_url, file_metadata=file_metadata)
+                          image[2], prompt, max_tokens, is_public_url=is_public_url, file_metadata=file_metadata)
 
         # Store any new metadata returned by provider
         if new_metadata:
