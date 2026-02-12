@@ -11,7 +11,7 @@ def getProfileSuffix(profile: str):
         return ''
     if profile.lower() == 'development':
         return ',dev'
-    return ',' + profile
+    return ',' + profile.lower()
 
 def deepMerge(dict1: dict, dict2: dict):
     result = dict1.copy()

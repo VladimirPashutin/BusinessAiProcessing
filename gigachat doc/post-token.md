@@ -280,7 +280,7 @@ getToken();
 После получения токена используйте его во всех запросах к GigaChat API:
 
 ```bash
-curl -X GET 'https://gigachat.devices.sberbank.ru/api/v1/symbolModels' \
+curl -X GET 'https://gigachat.devices.sberbank.ru/api/v1/models' \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer <полученный_access_token>'
 ```
