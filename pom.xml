@@ -43,11 +43,18 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <executable>pip</executable>
+                    <executable>pipenv</executable>
                     <arguments>
-                        <argument>freeze</argument>
+                        <argument>requirements</argument>
                     </arguments>
                     <outputFile>${project.basedir}\requirements.txt</outputFile>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

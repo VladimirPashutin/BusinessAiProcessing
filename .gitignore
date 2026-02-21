@@ -162,3 +162,4 @@ cython_debug/
 
 application_dev.yaml
 gigachat doc/GigaChatApi.txt
+/requirements.txt
