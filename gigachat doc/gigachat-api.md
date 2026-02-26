@@ -76,7 +76,7 @@ curl -L -X POST 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth' \
 Полученный токен передается в заголовке Authorization всех последующих запросов:
 
 ```bash
-curl -L -X GET 'https://gigachat.devices.sberbank.ru/api/v1/symbolModels' \
+curl -L -X GET 'https://gigachat.devices.sberbank.ru/api/v1/models' \
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer <токен_доступа>'
 ```
@@ -125,7 +125,7 @@ https://gigachat.devices.sberbank.ru/api/v1
 ### Категории методов
 
 #### 1. Models (Модели)
-- **GET /symbolModels** — получение списка доступных моделей
+- **GET /models** — получение списка доступных моделей
 
 #### 2. Chat Completions (Генерация ответов)
 - **POST /chat/completions** — отправка запроса на генерацию
@@ -207,15 +207,15 @@ access_token = token_info["access_token"]
 ### 2. Получение списка моделей
 
 ```python
-url = "https://gigachat.devices.sberbank.ru/api/v1/symbolModels"
+url = "https://gigachat.devices.sberbank.ru/api/v1/models"
 headers = {
     "Accept": "application/json",
     "Authorization": f"Bearer {access_token}"
 }
 
 response = requests.get(url, headers=headers)
-symbolModels = response.json()
-print(symbolModels)
+models = response.json()
+print(models)
 ```
 
 ### 3. Отправка запроса на генерацию
@@ -229,7 +229,7 @@ headers = {
 }
 
 payload = {
-    "symbolModel": "GigaChat",
+    "model": "GigaChat",
     "messages": [
         {
             "role": "user",
@@ -267,7 +267,7 @@ print(f"File uploaded: {file_info}")
 - [Быстрый старт для физических лиц](https://developers.sber.ru/ru/gigachat/individuals-quickstart)
 - [Быстрый старт для ИП и юридических лиц](https://developers.sber.ru/ru/gigachat/legal-quickstart)
 - [Тарифы и оплата](https://developers.sber.ru/ru/gigachat/api/tariffs)
-- [Модели GigaChat](https://developers.sber.ru/ru/gigachat/symbolModels)
+- [Модели GigaChat](https://developers.sber.ru/ru/gigachat/models)
 - [Работа с функциями](https://developers.sber.ru/ru/gigachat/guides/functions/overview)
 
 ## Контакты

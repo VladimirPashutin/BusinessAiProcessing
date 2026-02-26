@@ -13,7 +13,7 @@ class AiInterface:
         pass
     def generate_publication(self, orgName: str, assortment: str, description: str, imageDescription: str, prompt: str,char_limit: int, lower_tier: int = 0) -> str:
         pass
-    def describeImage(self, orgName: str, imageUrl: str, assortment: str, prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+    def describeImage(self, orgName: str, imageUrl: str, assortment: str, prompt: str, token_limit: int, is_public_url: bool | None = None, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
         pass
 
 @enum.unique

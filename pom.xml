@@ -17,37 +17,13 @@
 
     <description>Фоновое исполнение задач искусственного интеллекта</description>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>ru.pashutin</groupId>
-                <artifactId>platform-dependencies</artifactId>
-                <version>${project.version}</version>
-                <scope>import</scope>
-                <type>pom</type>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <build>
         <plugins>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>generate-resources</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
                 <configuration>
-                    <executable>pip</executable>
-                    <arguments>
-                        <argument>freeze</argument>
-                    </arguments>
-                    <outputFile>${project.basedir}\requirements.txt</outputFile>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

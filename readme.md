@@ -19,3 +19,10 @@ python3 businessAiProcessing.py
 
 ```
 Интерфейс отладки промптов - http://localhost:7777/debug
+
+### Проверка на тестовых данных
+
+```
+docker compose -f docker-compose.yaml up
+В интерфейсе отладки промптов - http://localhost:7777/debug раздел "Тестовые данные" - "Загрузить тестовые данные"
+```

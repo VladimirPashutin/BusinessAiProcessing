@@ -7,8 +7,8 @@ python:
   max_chars_for_review: 1000
   max_chars_for_publication: 2500
   max_tokens_for_describe_image: 500
-  mistral-key: zJUwEYPKJwuQlGYzoJs7tXlfXAbJOX9R
+  mistral-key: Z________________________a
   processing-time: 5
   publication:
     interval: 300
-  gigachat-auth-key: "MDRmZjA4MDEtZjBmYy00NjQzLWIzY2QtMzE3M2Y2NTNkYzNkOjhlNzk0ZTczLWFmYWYtNDgxZS05MzdjLWFiOWE5ZDQwZjk4ZQ=="
+  gigachat-auth-key: "M________________________=="

@@ -4,7 +4,7 @@ GigaChat API Testing Script
 
 This script tests your GigaChat credentials by:
 1. Getting an authentication token
-2. Fetching available symbolModels
+2. Fetching available models
 3. Sending a test chat message
 
 Usage:
@@ -17,16 +17,16 @@ Set your credentials as environment variables:
 Or modify the CLIENT_ID and CLIENT_SECRET variables in this script.
 """
 
+import base64
 import os
 import sys
-import json
-import base64
 import uuid
-import requests
 from typing import Optional, Dict, Any
 
+import requests
 # Disable SSL warnings for GigaChat API
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class GigaChatTester:
@@ -82,8 +82,8 @@ class GigaChatTester:
             return False
     
     def get_models(self) -> Optional[Dict[str, Any]]:
-        """Get list of available symbolModels."""
-        print("\n📋 Getting available symbolModels...")
+        """Get list of available models."""
+        print("\n📋 Getting available models...")
         
         if not self.access_token:
             print("❌ No access token. Please authenticate first.")
@@ -95,15 +95,15 @@ class GigaChatTester:
         }
         
         try:
-            response = requests.get(f"{self.base_url}/symbolModels", headers=headers, verify=False)
+            response = requests.get(f"{self.base_url}/models", headers=headers, verify=False)
             response.raise_for_status()
             
             models_data = response.json()
             print("✅ Models retrieved successfully!")
             
             if "data" in models_data:
-                print("Available symbolModels:")
-                for symbolModel in models_data["data"][:5]:  # Show first 5 symbolModels
+                print("Available models:")
+                for model in models_data["data"][:5]:  # Show first 5 symbolModels
                     print(f"  - {symbolModel.get('id', 'Unknown')}")
                     
             return models_data

@@ -44,7 +44,7 @@ curl -X POST "https://ngw.devices.sberbank.ru:9443/api/v2/oauth" \
 # Use the access token from Step 1
 ACCESS_TOKEN="YOUR_ACCESS_TOKEN_FROM_STEP_1"
 
-curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/symbolModels" \
+curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/models" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -56,12 +56,12 @@ curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/symbolModels" \
   "data": [
     {
       "id": "GigaChat",
-      "object": "symbolModel",
+      "object": "model",
       "owned_by": "salutedevices"
     },
     {
       "id": "GigaChat-Pro",
-      "object": "symbolModel",
+      "object": "model",
       "owned_by": "salutedevices"
     }
   ]
@@ -71,7 +71,7 @@ curl -X GET "https://gigachat.devices.sberbank.ru/api/v1/symbolModels" \
 ## Step 3: Send Chat Message
 
 ```bash
-# Use the access token from Step 1 and a symbolModel ID from Step 2
+# Use the access token from Step 1 and a model ID from Step 2
 ACCESS_TOKEN="YOUR_ACCESS_TOKEN_FROM_STEP_1"
 MODEL_ID="GigaChat"  # or another symbolModel from the list
 

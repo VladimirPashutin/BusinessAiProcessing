@@ -13,8 +13,17 @@ import psycopg2 as ps
 import schedule
 
 from ai_interface import AiInterface
+from cron_test_data.seed_test_data import debug_seed_test_data as _debug_seed_test_data
+from debug_logic import (
+    describe_image_debug,
+    generate_publication_debug,
+    load_org_prompts_debug,
+    save_org_prompts_debug,
+)
 from debug_ui import handle_debug_get, handle_debug_post
 from environment import Environment
+from gigachat import GigaChatAi
+from mistral import MistralAi
 
 dbConnectionString = None
 __active_community_status = 4
@@ -37,6 +46,9 @@ defaultPublicationPrompt = """
 Если есть ключевая цитрусовая нота (например, мандарин) — подчеркните её мягкость и эмоциональную роль, а не просто «свежесть». Ограничение: до {char_limit} символов. Обязательно упомяните {assortment} и {orgName} в тексте. Не используйте Markdown или HTML. Делайте структуру отступами и пустыми строками. КАПС применяйте только точечно для коротких заголовков/меток (1–3 слова), например: КОМПОЗИЦИЯ, КОМУ ПОДОЙДЁТ, ПОЧЕМУ {orgName}. Основной текст пишите в обычном регистре; не используйте капс в целых предложениях.
 """
 
+class BusinessAiException(Exception):
+    pass
+
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
     print("\n\nShutting down AI service server...")
@@ -45,19 +57,17 @@ def signal_handler(sig, frame):
 
 def getProvider(providerType: int) -> AiInterface:
     if providerType == 0:
-        from mistral import MistralAi
         return MistralAi()
     elif providerType == 1:
-        from gigachat import GigaChatAi
         return GigaChatAi()
-    raise Exception("Неизвестный тип провайдера искусственного интеллекта")
+    raise BusinessAiException("Неизвестный тип провайдера искусственного интеллекта")
 
 def getProviderName(providerType: int) -> str:
     if providerType == 0:
         return "Mistral"
     elif providerType == 1:
         return "GigaChat"
-    raise Exception("Неизвестный тип провайдера искусственного интеллекта")
+    raise BusinessAiException("Неизвестный тип провайдера искусственного интеллекта")
 
 def get_file_url_hash(file_url: str) -> str:
     """Generate MD5 hash for file URL"""
@@ -247,7 +257,7 @@ def generatePublication(organization: str, assortmentId: str | None = None,
                                (timeCreated, orgId[0], assortment[0], str(promptId), publication, 0))
             if imageName is not None:
                 cursor.execute("INSERT INTO " + dbSchema + ".publication_images(publications_created_at,"
-                               "publications_organization_id, images) VALUES(%s, %s, %s, %s)",
+                               "publications_organization_id, images) VALUES(%s, %s, %s)",
                                (timeCreated, orgId[0], imageName))
             conn.commit()
             print(f"Сформирована публикация для {organization}")
@@ -262,8 +272,9 @@ def debug_generate_publication(orgName: str,
                                prompt: str,
                                char_limit: int,
                                providerType: int = 0) -> str | None:
-    return getProvider(providerType).generate_publication(orgName, assortmentName, description,
-                                                          imageDescription, prompt, char_limit)
+    return generate_publication_debug(
+        getProvider, orgName, assortmentName, description, imageDescription, prompt, char_limit, providerType
+    )
 
 def debug_describe_image(orgName: str,
                          imageUrl: str,
@@ -271,17 +282,27 @@ def debug_describe_image(orgName: str,
                          prompt: str,
                          token_limit: int,
                          providerType: int = 0) -> str | None:
-    # Load existing metadata
-    file_metadata = load_file_metadata(imageUrl)
+    return describe_image_debug(
+        getProvider, load_file_metadata, store_file_metadata, orgName, imageUrl, assortmentName,
+        prompt, token_limit, providerType
+    )
 
-    # Call provider with metadata
-    result, new_metadata = getProvider(providerType).describeImage(orgName, imageUrl, assortmentName, prompt, token_limit, file_metadata=file_metadata)
+def debug_seed_test_data() -> str:
+    return _debug_seed_test_data(getConnectionString, dbSchemaKey, env)
 
-    # Store any new metadata returned by provider
-    if new_metadata:
-        store_file_metadata(imageUrl, new_metadata)
+def debug_process_assortment_images(orgName: str) -> str:
+    processAssortmentImages(orgName)
+    return f"Запущена обработка изображений для: {orgName}"
 
-    return result
+def debug_load_org_prompts(orgName: str):
+    return load_org_prompts_debug(
+        getConnectionString, dbSchemaKey, env, defaultPublicationPrompt, defaultImagePrompt, orgName
+    )
+
+def debug_save_org_prompts(orgName: str, publication_prompt: str, image_prompt: str, provider_type: int) -> str:
+    return save_org_prompts_debug(
+        getConnectionString, dbSchemaKey, env, orgName, publication_prompt, image_prompt, provider_type
+    )
 
 def selectNewAssortments(organization: str):
     try:
@@ -303,16 +324,24 @@ def processAssortmentImages(organization: str):
     max_tokens = env.get("python.max_tokens_for_describe_image", 500)
     promptId, prompt, providerType = getPrompt(organization, 0)
     images = selectNewAssortments(organization)
+    is_public_url = True 
     for image in images:
-        imageUrl = (env.get("python.imagesUrl", "http://business-ai/hooded/assortment/images/") +
-                    image[0] + "/" + image[1])
+        if image[1].startswith('http') and '://' in image[1]:
+            imageUrl = image[1]
+        else:
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/common/images/assortment|") +
+                        image[0] + "|" + image[1])
+            # for dev enviroment we should encode image data in base64 and send it to provider, 
+            #   because images are not accessible by public url
+            if env.profile == ",dev":
+                is_public_url = False
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
 
         # Call provider with metadata
         imageDescription, new_metadata = getProvider(providerType).describeImage(organization, imageUrl,
-                                                     image[2], prompt, max_tokens, file_metadata=file_metadata)
+                          image[2], prompt, max_tokens, is_public_url=is_public_url, file_metadata=file_metadata)
 
         # Store any new metadata returned by provider
         if new_metadata:
@@ -354,7 +383,7 @@ def selectNewRequests(organization: str):
 def processClientRequests(organization: str):
     char_limit = env.get("python.max_chars_for_review", 1000)
     promptId, prompt, providerType = getPrompt(organization, 2)
-    checkPromptId, checkPrompt, checkProviderType = getPrompt(organization, 3)
+    _, checkPrompt, checkProviderType = getPrompt(organization, 3)
     requests = selectNewRequests(organization)
     for request in requests:
         answer = getProvider(providerType).response_to_request(organization, request[5], prompt, char_limit)
@@ -445,7 +474,8 @@ class ProcessingAgent(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith('/debug'):
             handle_debug_post(self, defaultPublicationPrompt, defaultImagePrompt, env,
-                              debug_generate_publication, debug_describe_image)
+                              debug_generate_publication, debug_describe_image, debug_seed_test_data,
+                              debug_process_assortment_images, debug_load_org_prompts, debug_save_org_prompts)
             return
         # Fallback
         self.do_GET()

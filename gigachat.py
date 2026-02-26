@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import base64
-import uuid
-import time
-import re
 import hashlib
+import re
+import time
+import uuid
 
 import requests
 import urllib3
-import psycopg2 as ps
 
 import environment
 from ai_interface import AiInterface
@@ -44,7 +42,7 @@ class GigaChatAi(AiInterface):
             "GigaChat-Max"
         ]
 
-    # Helper to pick symbolModel by kind and tier offset (0=pro, 1=standard, 2=max)
+    # Helper to pick model by kind and tier offset (0=pro, 1=standard, 2=max)
     def _pick_model(self, kind: str, lower_tier: int) -> str:
         tiers = self.text_tiers if kind == "text" else self.vision_tiers
         index = max(0, min(lower_tier, 2))
@@ -140,9 +138,9 @@ class GigaChatAi(AiInterface):
                 print(f"Response status: {e.response.status_code}")
                 print(f"Response body: {e.response.text}")
             return None
-    def _chat_completion(self, messages: list, symbolModel: str, max_tokens: int = None) -> str | None:
+    def _chat_completion(self, messages: list, model: str, max_tokens: int = None) -> str | None:
         """Generic chat completion method"""
-        print(f"provider GigaChat endpoint chat/completions called (symbolModel: {symbolModel})")
+        print(f"provider GigaChat endpoint chat/completions called (model: {model})")
         
         if not self._get_auth_token():
             print("provider GigaChat endpoint chat/completions response failed (auth)")
@@ -154,7 +152,7 @@ class GigaChatAi(AiInterface):
         }
         
         data = {
-            "symbolModel": symbolModel,
+            "model": model,
             "messages": messages,
             "temperature": 0.7
         }
@@ -190,7 +188,7 @@ class GigaChatAi(AiInterface):
 
     def request_rate(self, request: str, prompt: str) -> float:
         print("provider GigaChat endpoint request_rate called")
-        symbolModel = self._pick_model("text", 0)
+        model = self._pick_model("text", 0)
         
         messages = [
             {"role": "system", "content": prompt},
@@ -201,7 +199,7 @@ class GigaChatAi(AiInterface):
             {"role": "user", "content": request}
         ]
         
-        result = self._chat_completion(messages, symbolModel, 10)
+        result = self._chat_completion(messages, model, 10)
         
         if result:
             try:
@@ -219,7 +217,7 @@ class GigaChatAi(AiInterface):
 
     def response_to_request(self, orgName: str, request: dict, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
         print(f"provider GigaChat endpoint response_to_request called (tier: {lower_tier})")
-        symbolModel = self._pick_model("text", lower_tier)
+        model = self._pick_model("text", lower_tier)
         
         messages = [
             {"role": "system", "content": prompt},
@@ -237,7 +235,7 @@ class GigaChatAi(AiInterface):
             }
         ]
         
-        result = self._chat_completion(messages, symbolModel, char_limit * 2)
+        result = self._chat_completion(messages, model, char_limit * 2)
         
         if result is None and lower_tier < 2:
             print(f"Retrying response_to_request with lower tier: {lower_tier + 1}")
@@ -253,7 +251,7 @@ class GigaChatAi(AiInterface):
     def generate_publication(self, orgName: str, assortment: str, description: str,
                            imageDescription: str, prompt: str, char_limit: int, lower_tier: int = 0) -> str | None:
         print(f"provider GigaChat endpoint generate_publication called (tier: {lower_tier})")
-        symbolModel = self._pick_model("text", lower_tier)
+        model = self._pick_model("text", lower_tier)
         
         # Format the prompt template with actual values
         formatted_prompt = prompt.format(orgName=orgName, assortment=assortment, char_limit=char_limit)
@@ -275,7 +273,7 @@ class GigaChatAi(AiInterface):
                 "content": f"Публикация сопровождается изображением, описание которого сформулировано как {imageDescription}"
             })
         
-        result = self._chat_completion(messages, symbolModel, char_limit * 2)
+        result = self._chat_completion(messages, model, char_limit * 2)
         
         if result is None and lower_tier < 2:
             print(f"Retrying generate_publication with lower tier: {lower_tier + 1}")
@@ -289,9 +287,10 @@ class GigaChatAi(AiInterface):
         return result
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                     prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+                     prompt: str, token_limit: int, is_public_url: bool | None = None, lower_tier: int = 0,
+                     file_metadata: dict = None) -> tuple[str | None, dict | None]:
         print(f"provider GigaChat endpoint describeImage called (tier: {lower_tier})")
-        symbolModel = self._pick_model("vision", lower_tier)
+        model = self._pick_model("vision", lower_tier)
         
         # Initialize metadata if not provided
         if file_metadata is None:
@@ -307,7 +306,7 @@ class GigaChatAi(AiInterface):
             else:
                 # Download and upload image
                 print(f"Downloading image from: {imageUrl}")
-                response = requests.get(imageUrl, stream=True)
+                response = requests.get(imageUrl, stream=True, verify=False)
                 response.raise_for_status()
                 image_data = response.content
                 print(f"Downloaded {len(image_data)} bytes of image data")
@@ -334,12 +333,13 @@ class GigaChatAi(AiInterface):
             ]
             
             print(f"Sending chat completion with file attachment: {file_id}")
-            result = self._chat_completion(messages, symbolModel, token_limit * 2)
+            result = self._chat_completion(messages, model, token_limit * 2)
             
             if result is None and lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
                 # Pass updated file_metadata with the file ID to retry attempts
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                          lower_tier + 1, file_metadata)
             
             # Prepare metadata to return
             metadata_to_return = None
@@ -359,6 +359,7 @@ class GigaChatAi(AiInterface):
             if lower_tier < 2:
                 print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
                 # Pass updated file_metadata with the file ID to retry attempts
-                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                          lower_tier + 1, file_metadata)
             print(f"provider GigaChat endpoint describeImage response failed: {e}")
             return None, None

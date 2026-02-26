@@ -9,7 +9,6 @@ from mistralai import Mistral
 import environment
 from ai_interface import AiInterface
 
-
 CAPACITY_EXCEEDED_CODES = {"3505", "service_tier_capacity_exceeded"}
 
 class MistralAi(AiInterface):
@@ -25,9 +24,9 @@ class MistralAi(AiInterface):
             "mistral-small-latest",
         ]
         self.vision_tiers = [
-            "pixtral-large-latest",
-            "pixtral-medium-latest",
-            "pixtral-small-latest",
+            "mistral-medium-latest",
+            "mistral-small-latest",
+            "ministral-14b-2512",
         ]
 
     # Helper to pick model by kind and tier offset (0=large, 1=medium, 2=small)
@@ -39,7 +38,7 @@ class MistralAi(AiInterface):
     def _is_capacity_exceeded(self, err: Exception) -> bool:
         # Heuristic: look for 429 and code in message
         msg = str(err)
-        return ("Status 429" in msg or "429" in msg) and any(code in msg for code in CAPACITY_EXCEEDED_CODES)
+        return ("Status 429" in msg) or any(code in msg for code in CAPACITY_EXCEEDED_CODES)
 
     def getId(self) -> str:
         return self.id
@@ -50,12 +49,19 @@ class MistralAi(AiInterface):
         return -1
 
     def describeImage(self, orgName: str, imageUrl: str, assortment: str,
-                      prompt: str, token_limit: int, lower_tier: int = 0, file_metadata: dict = None) -> tuple[str | None, dict | None]:
+                      prompt: str, token_limit: int, is_public_url: bool | None = None, lower_tier: int = 0,
+                      file_metadata: dict = None) -> tuple[str | None, dict | None]:
         print(f"provider Mistral endpoint describeImage called (tier: {lower_tier})")
-        with Mistral(api_key=self.api_key, client=httpx.Client(verify=False)) as mistral:
+        with Mistral(api_key=self.api_key, client=httpx.Client(verify=False, follow_redirects=True)) as mistral:
             try:
-                response = requests.get(imageUrl, stream=True)
-                image_data = base64.b64encode(response.content).decode('utf-8')
+                use_direct_url = bool(is_public_url)
+                if use_direct_url:
+                    image_payload = imageUrl
+                else:
+                    response = requests.get(imageUrl, stream=True, verify=False)
+                    response.raise_for_status()
+                    image_data = base64.b64encode(response.content).decode('utf-8')
+                    image_payload = f"data:image/jpeg;base64,{image_data}"
                 model_name = self._pick_model("vision", lower_tier)
                 res = mistral.chat.complete(
                     model=model_name,
@@ -73,7 +79,7 @@ class MistralAi(AiInterface):
                         },
                         {
                             "content": [
-                                {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_data}"}
+                                {"type": "image_url", "image_url": image_payload}
                             ],
                             "role": "user"
                         }
@@ -89,7 +95,8 @@ class MistralAi(AiInterface):
                 if self._is_capacity_exceeded(e) and lower_tier < 2:
                     # Retry with a lower tier inside provider
                     print(f"Retrying describeImage with lower tier: {lower_tier + 1}")
-                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, lower_tier + 1, file_metadata)
+                    return self.describeImage(orgName, imageUrl, assortment, prompt, token_limit, is_public_url,
+                                              lower_tier + 1, file_metadata)
                 print(f"provider Mistral endpoint describeImage response failed: {e}")
                 return None, None
 
