@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import datetime
-import os
 import random
 import signal
 import sys
@@ -22,7 +21,7 @@ from debug_logic import (
     save_org_prompts_debug,
 )
 from debug_ui import handle_debug_get, handle_debug_post
-from environment import Environment, getProfileSuffix
+from environment import Environment
 from gigachat import GigaChatAi
 from mistral import MistralAi
 
@@ -47,6 +46,9 @@ defaultPublicationPrompt = """
 Если есть ключевая цитрусовая нота (например, мандарин) — подчеркните её мягкость и эмоциональную роль, а не просто «свежесть». Ограничение: до {char_limit} символов. Обязательно упомяните {assortment} и {orgName} в тексте. Не используйте Markdown или HTML. Делайте структуру отступами и пустыми строками. КАПС применяйте только точечно для коротких заголовков/меток (1–3 слова), например: КОМПОЗИЦИЯ, КОМУ ПОДОЙДЁТ, ПОЧЕМУ {orgName}. Основной текст пишите в обычном регистре; не используйте капс в целых предложениях.
 """
 
+class BusinessAiException(Exception):
+    pass
+
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
     print("\n\nShutting down AI service server...")
@@ -58,14 +60,14 @@ def getProvider(providerType: int) -> AiInterface:
         return MistralAi()
     elif providerType == 1:
         return GigaChatAi()
-    raise Exception("Неизвестный тип провайдера искусственного интеллекта")
+    raise BusinessAiException("Неизвестный тип провайдера искусственного интеллекта")
 
 def getProviderName(providerType: int) -> str:
     if providerType == 0:
         return "Mistral"
     elif providerType == 1:
         return "GigaChat"
-    raise Exception("Неизвестный тип провайдера искусственного интеллекта")
+    raise BusinessAiException("Неизвестный тип провайдера искусственного интеллекта")
 
 def get_file_url_hash(file_url: str) -> str:
     """Generate MD5 hash for file URL"""
@@ -327,12 +329,12 @@ def processAssortmentImages(organization: str):
         if image[1].startswith('http') and '://' in image[1]:
             imageUrl = image[1]
         else:
-            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/business-common/images/") +
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/common/images/assortment|") +
                         image[0] + "|" + image[1])
             # for dev enviroment we should encode image data in base64 and send it to provider, 
             #   because images are not accessible by public url
-            if getProfileSuffix(os.environ['PYTHON_PROFILE']) == ",dev":
-                is_public_url = False 
+            if env.profile == ",dev":
+                is_public_url = False
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
