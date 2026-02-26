@@ -319,12 +319,12 @@ def processAssortmentImages(organization: str):
         if image[1].startswith('http') and '://' in image[1]:
             imageUrl = image[1]
         else:
-            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/common/images/") +
+            imageUrl = (env.get("python.imagesUrl", "https://business.t3t.online/common/images/assortment|") +
                         image[0] + "|" + image[1])
             # for dev enviroment we should encode image data in base64 and send it to provider, 
             #   because images are not accessible by public url
-            # if getProfileSuffix(os.environ['PYTHON_PROFILE']) == ",dev":
-            #     is_public_url = False
+            if env.profile == ",dev":
+                is_public_url = False
 
         # Load existing metadata
         file_metadata = load_file_metadata(imageUrl)
